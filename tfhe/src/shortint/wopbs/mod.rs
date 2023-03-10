@@ -8,6 +8,7 @@
 //! both uses.
 
 use crate::core_crypto::commons::parameters::*;
+pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::engine::ShortintEngine;
@@ -26,6 +27,119 @@ pub struct WopbsKey {
     pub cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
     pub ksk_pbs_to_wopbs: LweKeyswitchKeyOwned<u64>,
     pub param: Parameters,
+}
+
+#[must_use]
+pub struct WopbsLUTBase {
+    // Flattened Wopbs LUT
+    plaintext_list: PlaintextListOwned<u64>,
+    // How many output ciphertexts will be produced after applying the Wopbs to an input vector of
+    // ciphertexts encrypting bits
+    output_ciphertext_count: CiphertextCount,
+}
+
+impl WopbsLUTBase {
+    pub fn from_vec(value: Vec<u64>, output_ciphertext_count: CiphertextCount) -> Self {
+        Self {
+            plaintext_list: PlaintextList::from_container(value),
+            output_ciphertext_count,
+        }
+    }
+
+    pub fn new(small_lut_size: PlaintextCount, output_ciphertext_count: CiphertextCount) -> Self {
+        Self {
+            plaintext_list: PlaintextList::new(
+                0,
+                PlaintextCount(small_lut_size.0 * output_ciphertext_count.0),
+            ),
+            output_ciphertext_count,
+        }
+    }
+
+    pub fn lut(&self) -> &'_ PlaintextListOwned<u64> {
+        &self.plaintext_list
+    }
+
+    pub fn lut_mut(&mut self) -> &'_ mut PlaintextListOwned<u64> {
+        &mut self.plaintext_list
+    }
+
+    pub fn output_ciphertext_count(&self) -> CiphertextCount {
+        self.output_ciphertext_count
+    }
+
+    pub fn small_lut_size(&self) -> PlaintextCount {
+        PlaintextCount(self.lut().plaintext_count().0 / self.output_ciphertext_count().0)
+    }
+
+    pub fn get_small_lut(&self, index: usize) -> PlaintextListView<'_, u64> {
+        assert!(
+            index < self.output_ciphertext_count().0,
+            "index {index} out of bounds, max {}",
+            self.output_ciphertext_count().0
+        );
+
+        let small_lut_size = self.small_lut_size().0;
+
+        self.lut()
+            .get_sub(index * small_lut_size..(index + 1) * small_lut_size)
+    }
+
+    pub fn get_small_lut_mut(&mut self, index: usize) -> PlaintextListMutView<'_, u64> {
+        assert!(
+            index < self.output_ciphertext_count().0,
+            "index {index} out of bounds, max {}",
+            self.output_ciphertext_count().0
+        );
+
+        let small_lut_size = self.small_lut_size().0;
+
+        self.lut_mut()
+            .get_sub_mut(index * small_lut_size..(index + 1) * small_lut_size)
+    }
+}
+
+#[must_use]
+pub struct ShortintWopbsLUT {
+    inner: WopbsLUTBase,
+}
+
+impl ShortintWopbsLUT {
+    pub fn new(lut_size: PlaintextCount) -> Self {
+        Self {
+            inner: WopbsLUTBase::new(lut_size, CiphertextCount(1)),
+        }
+    }
+}
+
+impl std::ops::Deref for ShortintWopbsLUT {
+    type Target = WopbsLUTBase;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::ops::DerefMut for ShortintWopbsLUT {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl TryFrom<Vec<Vec<u64>>> for ShortintWopbsLUT {
+    type Error = &'static str;
+
+    fn try_from(mut value: Vec<Vec<u64>>) -> Result<Self, Self::Error> {
+        if value.len() != 1 {
+            return Err("ShortintWopbsLUT can only contain one small lut");
+        }
+
+        let value = value.remove(0);
+
+        Ok(Self {
+            inner: WopbsLUTBase::from_vec(value, CiphertextCount(1)),
+        })
+    }
 }
 
 impl WopbsKey {
@@ -96,7 +210,7 @@ impl WopbsKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (m * m) % message_modulus);
     /// ```
-    pub fn generate_lut<F>(&self, ct: &Ciphertext, f: F) -> Vec<u64>
+    pub fn generate_lut<F>(&self, ct: &Ciphertext, f: F) -> ShortintWopbsLUT
     where
         F: Fn(u64) -> u64,
     {
@@ -104,11 +218,11 @@ impl WopbsKey {
         let basis = ct.message_modulus.0 * ct.carry_modulus.0;
         let delta = 64 - f64::log2((basis) as f64).ceil() as u64 - 1;
         let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
-        let mut vec_lut = vec![0; poly_size];
-        for (i, value) in vec_lut.iter_mut().enumerate().take(basis) {
+        let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
+        for (i, value) in lut.lut_mut().as_mut().iter_mut().enumerate().take(basis) {
             *value = f((i % ct.message_modulus.0) as u64) << delta;
         }
-        vec_lut
+        lut
     }
 
     /// Generate the Look-Up Table homomorphically using the WoPBS approach.
@@ -173,7 +287,7 @@ impl WopbsKey {
     /// let res = cks.decrypt_message_native_crt(&ct_res, message_modulus);
     /// assert_eq!(res, (m * m) % message_modulus as u64);
     /// ```
-    pub fn generate_lut_native_crt<F>(&self, ct: &Ciphertext, f: F) -> Vec<u64>
+    pub fn generate_lut_native_crt<F>(&self, ct: &Ciphertext, f: F) -> ShortintWopbsLUT
     where
         F: Fn(u64) -> u64,
     {
@@ -181,13 +295,13 @@ impl WopbsKey {
         let basis = ct.message_modulus.0 * ct.carry_modulus.0;
         let nb_bit = f64::log2((basis) as f64).ceil() as u64;
         let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
-        let mut vec_lut = vec![0; poly_size];
+        let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
         for i in 0..basis {
             let index_lut = (((i as u64 % basis as u64) << nb_bit) / basis as u64) as usize;
-            vec_lut[index_lut] =
+            lut.lut_mut().as_mut()[index_lut] =
                 (((f(i as u64) % basis as u64) as u128 * (1 << 64)) / basis as u128) as u64;
         }
-        vec_lut
+        lut
     }
 
     /// Apply the Look-Up Table homomorphically using the WoPBS approach.
@@ -219,7 +333,7 @@ impl WopbsKey {
         &self,
         sks: &ServerKey,
         ct_in: &Ciphertext,
-        lut: &[u64],
+        lut: &WopbsLUTBase,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -253,7 +367,7 @@ impl WopbsKey {
     /// let res = cks.decrypt_message_and_carry(&ct_res);
     /// assert_eq!(res, 1);
     /// ```
-    pub fn wopbs(&self, ct_in: &Ciphertext, lut: &[u64]) -> Ciphertext {
+    pub fn wopbs(&self, ct_in: &Ciphertext, lut: &ShortintWopbsLUT) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.wopbs(self, ct_in, lut).unwrap())
     }
 
@@ -280,7 +394,7 @@ impl WopbsKey {
     pub fn programmable_bootstrapping_without_padding(
         &self,
         ct_in: &Ciphertext,
-        lut: &[u64],
+        lut: &ShortintWopbsLUT,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -312,7 +426,7 @@ impl WopbsKey {
     pub fn programmable_bootstrapping_native_crt(
         &self,
         ct_in: &mut Ciphertext,
-        lut: &[u64],
+        lut: &WopbsLUTBase,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -370,7 +484,7 @@ impl WopbsKey {
     /// # Warning Experimental
     pub fn circuit_bootstrapping_vertical_packing<InputCont>(
         &self,
-        vec_lut: &[Vec<u64>],
+        vec_lut: &WopbsLUTBase,
         extracted_bits_blocks: &LweCiphertextList<InputCont>,
     ) -> Vec<LweCiphertextOwned<u64>>
     where

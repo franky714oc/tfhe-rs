@@ -494,7 +494,7 @@ fn radmodint_wopbs(c: &mut Criterion) {
                     << delta,
             );
         }
-        let big_lut = vec![lut_1, lut_2];
+        let big_lut = vec![lut_1, lut_2].try_into().unwrap();
 
         println!(
             "(Input Size {}; Carry_Space {}, Message_Space {}, Block Number {}):  \
@@ -551,7 +551,7 @@ fn radmodint_wopbs_16bits_param_2_2_8_blocks(c: &mut Criterion) {
             (rng.gen::<u64>() % (param.message_modulus.0 * param.carry_modulus.0) as u64) << delta,
         );
     }
-    let big_lut = vec![lut_1, lut_2];
+    let big_lut = vec![lut_1, lut_2].try_into().unwrap();
 
     let id = format!(
         "(Integer-WoPBS-Message_{}_Carry_{}_Input_{}_Block_{}):",
@@ -601,7 +601,7 @@ fn radmodint_wopbs_16bits_param_4_4_4_blocks(c: &mut Criterion) {
             (rng.gen::<u64>() % (param.message_modulus.0 * param.carry_modulus.0) as u64) << delta,
         );
     }
-    let big_lut = vec![lut_1, lut_2];
+    let big_lut = vec![lut_1, lut_2].try_into().unwrap();
 
     let id = format!(
         "(Integer-WoPBS-Message_{}_Carry_{}_Input_{}_Block_{}):",
@@ -658,7 +658,7 @@ fn radmodint_wopbs_32_bits(c: &mut Criterion) {
                     << delta,
             );
         }
-        let big_lut = vec![lut_1, lut_2];
+        let big_lut = vec![lut_1, lut_2].try_into().unwrap();
 
         let id = format!(
             "(Integer-WoPBS-Message_{}_Carry_{}_Input_{}_Block_{}):",
