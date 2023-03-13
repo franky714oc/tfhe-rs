@@ -47,7 +47,6 @@ usize_is_size_t = true
 # "target_os = freebsd" = "DEFINE_FREEBSD"
 # "feature = serde" = "DEFINE_SERDE"
 
-
 [export]
 include = ["BooleanParametersSet"]
 exclude = []
@@ -123,7 +122,7 @@ extra_bindings = []
 
 
 [parse.expand]
-crates = []
+crates = ["tfhe"]
 all_features = false
 default_features = true
-features = []
+features = ["boolean", "shortint", "integer", "__c_api", "shortint-c-api", "boolean-c-api"]

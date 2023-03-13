@@ -30,6 +30,6 @@ fn gen_c_api() {
 }
 
 fn main() {
-    #[cfg(feature = "__c_api")]
-    gen_c_api()
+    //#[cfg(feature = "__c_api")]
+    //gen_c_api()
 }
