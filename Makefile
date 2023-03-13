@@ -137,7 +137,8 @@ build_tfhe_full: install_rs_build_toolchain
 .PHONY: build_c_api # Build the C API for boolean and shortint
 build_c_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),shortint,integer,internal-keycache,boolean,__c_api,boolean-c-api,shortint-c-api -p tfhe
+	RUSTUP_TOOLCHAIN=nightly cbindgen -c ./tfhe/cbindgen.toml ./tfhe/ -o target/release/tfhe.h
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain
