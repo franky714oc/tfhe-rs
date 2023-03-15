@@ -12,5 +12,5 @@ pub use super::commons::math::random::ActivatedRandomGenerator;
 pub use super::commons::parameters::*;
 pub use super::commons::traits::*;
 pub use super::entities::*;
-pub use super::fft_impl::math::fft::Fft;
+pub use super::fft_impl::math::fft::{Fft, FftView};
 pub use super::seeders::*;
