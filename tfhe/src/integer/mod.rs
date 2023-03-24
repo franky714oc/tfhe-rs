@@ -62,7 +62,7 @@ pub mod server_key;
 pub mod u256;
 pub mod wopbs;
 
-pub use ciphertext::{CrtCiphertext, IntegerCiphertext, RadixCiphertext};
+pub use ciphertext::{CrtCiphertext, IntegerCiphertext, RadixCiphertextBig};
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use public_key::{CompressedPublicKey, PublicKey};
 pub use server_key::{CheckError, ServerKey};

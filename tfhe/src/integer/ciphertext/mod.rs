@@ -1,7 +1,10 @@
 //! This module implements the ciphertext structures.
+use crate::shortint::ciphertext::{BootstrapKeyswitch, KeyswitchBootstrap};
 use crate::shortint::{
-    CiphertextBig as ShortintCiphertext, CompressedCiphertextBig as CompressedShortintCiphertext,
+    CiphertextBase, CiphertextBig, CiphertextSmall,
+    CompressedCiphertextBig as CompressedShortintCiphertext, PBSOrderMarker,
 };
+type ShortintCiphertext = CiphertextBig;
 use serde::{Deserialize, Serialize};
 
 /// Structure containing a ciphertext in radix decomposition.
@@ -16,13 +19,18 @@ impl<Block> From<Vec<Block>> for BaseRadixCiphertext<Block> {
         Self { blocks }
     }
 }
+
+// Type alias to save some typing in implementation parts
+pub type RadixCiphertext<PBSOder> = BaseRadixCiphertext<CiphertextBase<PBSOder>>;
+
 /// Structure containing a ciphertext in radix decomposition.
-pub type RadixCiphertext = BaseRadixCiphertext<ShortintCiphertext>;
+pub type RadixCiphertextBig = BaseRadixCiphertext<CiphertextBig>;
+pub type RadixCiphertextSmall = BaseRadixCiphertext<CiphertextSmall>;
 
 /// Structure containing a **compressed** ciphertext in radix decomposition.
 pub type CompressedRadixCiphertext = BaseRadixCiphertext<CompressedShortintCiphertext>;
 
-impl From<CompressedRadixCiphertext> for RadixCiphertext {
+impl From<CompressedRadixCiphertext> for RadixCiphertextBig {
     fn from(compressed: CompressedRadixCiphertext) -> Self {
         Self::from(
             compressed
@@ -35,9 +43,27 @@ impl From<CompressedRadixCiphertext> for RadixCiphertext {
 }
 
 pub trait IntegerCiphertext: Clone {
-    fn from_blocks(blocks: Vec<ShortintCiphertext>) -> Self;
-    fn blocks(&self) -> &[ShortintCiphertext];
-    fn blocks_mut(&mut self) -> &mut [ShortintCiphertext];
+    type PBSOrder: PBSOrderMarker;
+
+    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self;
+    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>];
+    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>];
+    fn moduli(&self) -> Vec<u64>;
+}
+
+impl IntegerCiphertext for RadixCiphertextBig {
+    type PBSOrder = KeyswitchBootstrap;
+
+    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self {
+        Self::from(blocks)
+    }
+    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>] {
+        &self.blocks
+    }
+    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>] {
+        &mut self.blocks
+    }
+
     fn moduli(&self) -> Vec<u64> {
         self.blocks()
             .iter()
@@ -46,28 +72,43 @@ pub trait IntegerCiphertext: Clone {
     }
 }
 
-impl IntegerCiphertext for RadixCiphertext {
-    fn blocks(&self) -> &[ShortintCiphertext] {
+impl IntegerCiphertext for RadixCiphertextSmall {
+    type PBSOrder = BootstrapKeyswitch;
+
+    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self {
+        Self::from(blocks)
+    }
+    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>] {
         &self.blocks
     }
-    fn blocks_mut(&mut self) -> &mut [ShortintCiphertext] {
+    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>] {
         &mut self.blocks
     }
-    fn from_blocks(blocks: Vec<ShortintCiphertext>) -> Self {
-        Self { blocks }
+
+    fn moduli(&self) -> Vec<u64> {
+        self.blocks()
+            .iter()
+            .map(|x| x.message_modulus.0 as u64)
+            .collect()
     }
 }
 
 impl IntegerCiphertext for CrtCiphertext {
-    fn blocks(&self) -> &[ShortintCiphertext] {
-        &self.blocks
-    }
-    fn blocks_mut(&mut self) -> &mut [ShortintCiphertext] {
-        &mut self.blocks
-    }
-    fn from_blocks(blocks: Vec<ShortintCiphertext>) -> Self {
+    type PBSOrder = KeyswitchBootstrap;
+
+    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self {
         let moduli = blocks.iter().map(|x| x.message_modulus.0 as u64).collect();
         Self { blocks, moduli }
+    }
+    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>] {
+        &self.blocks
+    }
+    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>] {
+        &mut self.blocks
+    }
+
+    fn moduli(&self) -> Vec<u64> {
+        self.moduli.clone()
     }
 }
 

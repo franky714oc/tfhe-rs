@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
+use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertextBig};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
 use crate::shortint::parameters::MessageModulus;
@@ -23,7 +23,7 @@ impl CompressedPublicKey {
         &self,
         message: T,
         num_blocks: usize,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertextBig {
         self.encrypt_words_radix(message, num_blocks, ShortintCompressedPublicKey::encrypt)
     }
 
@@ -31,7 +31,7 @@ impl CompressedPublicKey {
         &self,
         message: u64,
         num_blocks: usize,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertextBig {
         self.encrypt_words_radix(
             message,
             num_blocks,

@@ -24,7 +24,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
-use crate::shortint::ciphertext::{CiphertextBase, CiphertextBig, CiphertextSmall, Degree};
+use crate::shortint::ciphertext::{CiphertextBase, CiphertextSmall, Degree};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
@@ -759,7 +759,7 @@ impl ServerKey {
     /// let ct_res = cks.decrypt(&ct1);
     /// assert_eq!(1, ct_res);
     /// ```
-    pub fn create_trivial(&self, value: u64) -> CiphertextBig {
+    pub fn create_trivial<PBSOrder: PBSOrderMarker>(&self, value: u64) -> CiphertextBase<PBSOrder> {
         ShortintEngine::with_thread_local_mut(|engine| engine.create_trivial(self, value).unwrap())
     }
 

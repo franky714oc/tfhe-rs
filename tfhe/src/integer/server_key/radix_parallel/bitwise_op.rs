@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
@@ -30,11 +31,11 @@ impl ServerKey {
     /// let dec_result = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 & msg2);
     /// ```
-    pub fn smart_bitand_parallelized(
+    pub fn smart_bitand_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -44,10 +45,10 @@ impl ServerKey {
         self.unchecked_bitand(ct_left, ct_right)
     }
 
-    pub fn smart_bitand_assign_parallelized(
+    pub fn smart_bitand_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
     ) {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
@@ -86,11 +87,11 @@ impl ServerKey {
     /// let dec_result = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 | msg2);
     /// ```
-    pub fn smart_bitor_parallelized(
+    pub fn smart_bitor_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -100,10 +101,10 @@ impl ServerKey {
         self.unchecked_bitor(ct_left, ct_right)
     }
 
-    pub fn smart_bitor_assign_parallelized(
+    pub fn smart_bitor_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
     ) {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
@@ -142,11 +143,11 @@ impl ServerKey {
     /// let dec_result = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 ^ msg2);
     /// ```
-    pub fn smart_bitxor_parallelized(
+    pub fn smart_bitxor_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -156,10 +157,10 @@ impl ServerKey {
         self.unchecked_bitxor(ct_left, ct_right)
     }
 
-    pub fn smart_bitxor_assign_parallelized(
+    pub fn smart_bitxor_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
     ) {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(

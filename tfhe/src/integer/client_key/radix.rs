@@ -1,7 +1,7 @@
 //! Definition of the client key for radix decomposition
 
 use super::ClientKey;
-use crate::integer::RadixCiphertext;
+use crate::integer::RadixCiphertextBig;
 use crate::shortint::{CiphertextBig as ShortintCiphertext, Parameters as ShortintParameters};
 
 use serde::{Deserialize, Serialize};
@@ -49,11 +49,11 @@ impl RadixClientKey {
         }
     }
 
-    pub fn encrypt(&self, message: u64) -> RadixCiphertext {
+    pub fn encrypt(&self, message: u64) -> RadixCiphertextBig {
         self.key.encrypt_radix(message, self.num_blocks)
     }
 
-    pub fn decrypt(&self, ciphertext: &RadixCiphertext) -> u64 {
+    pub fn decrypt(&self, ciphertext: &RadixCiphertextBig) -> u64 {
         self.key.decrypt_radix(ciphertext)
     }
 

@@ -1,6 +1,6 @@
 use crate::typed_api::integers::client_key::GenericIntegerClientKey;
 
-use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertext, RadixClientKey, U256};
+use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertextBig, RadixClientKey, U256};
 use crate::typed_api::internal_traits::{EncryptionKey, ParameterType};
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,7 @@ impl IntegerPublicKey for RadixPublicKey {
 }
 
 impl EncryptionKey<u64> for RadixPublicKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn encrypt(&self, value: u64) -> Self::Ciphertext {
         self.key.encrypt_radix(value, self.num_blocks)
@@ -44,7 +44,7 @@ impl EncryptionKey<u64> for RadixPublicKey {
 }
 
 impl EncryptionKey<U256> for RadixPublicKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn encrypt(&self, value: U256) -> Self::Ciphertext {
         self.key.encrypt_radix(value, self.num_blocks)
