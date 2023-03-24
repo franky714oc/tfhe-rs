@@ -57,39 +57,64 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
         dollar
     :param hardware_hourly_cost: hourly cost of the hardware used in dollar
 
-    :return: :class:`list` of data points
+    :return: tuple of :class:`list` as (data points, parsing failures)
     """
     excluded_directories = ["child_generate", "fork", "parent_generate", "report"]
     result_values = []
+    parsing_failures = []
+
     for dire in directory.iterdir():
         if dire.name in excluded_directories or not dire.is_dir():
             continue
         for subdir in dire.iterdir():
             if walk_subdirs:
-                subdir = subdir.joinpath("new")
-                if not subdir.exists():
-                    continue
+                if subdir.name == "new":
+                    pass
+                else:
+                    subdir = subdir.joinpath("new")
+                    if not subdir.exists():
+                        continue
             elif subdir.name != "new":
                 continue
 
-            test_name = parse_benchmark_file(subdir)
+            full_name, test_name = parse_benchmark_file(subdir)
+            if test_name is None:
+                parsing_failures.append((full_name, "'function_id' field is null in report"))
+                continue
+
+            try:
+                params = get_parameters(test_name)
+                display_name = params.pop("display_name")
+            except Exception as err:
+                parsing_failures.append((full_name, f"failed to get parameters: {err}"))
+                continue
+
             for stat_name, value in parse_estimate_file(subdir).items():
                 test_name_parts = list(filter(None, [test_name, stat_name, name_suffix]))
-                result_values.append({"value": value, "test": "_".join(test_name_parts)})
+                result_values.append({"value": value,
+                                      "test": "_".join(test_name_parts),
+                                      "name": display_name,
+                                      "params": params})
 
                 if stat_name == "mean" and compute_throughput:
-                    test_name_parts.append("ops-per-ms")
+                    test_suffix = "ops-per-ms"
+                    test_name_parts.append(test_suffix)
                     result_values.append({"value": compute_ops_per_millisecond(value),
-                                          "test": "_".join(test_name_parts)})
+                                          "test": "_".join(test_name_parts),
+                                          "name": "_".join([display_name, test_suffix]),
+                                          "params": params})
                     test_name_parts.pop()
 
                     if hardware_hourly_cost is not None:
-                        test_name_parts.append("ops-per-dollar")
+                        test_suffix = "ops-per-dollar"
+                        test_name_parts.append(test_suffix)
                         result_values.append({
                             "value": compute_ops_per_dollar(value, hardware_hourly_cost),
-                            "test": "_".join(test_name_parts)})
+                            "test": "_".join(test_name_parts),
+                            "name": "_".join([display_name, test_suffix]),
+                            "params": params})
 
-    return result_values
+    return result_values, parsing_failures
 
 
 def parse_benchmark_file(directory):
@@ -101,7 +126,7 @@ def parse_benchmark_file(directory):
     :return: name of the test as :class:`str`
     """
     raw_res = _parse_file_to_json(directory, "benchmark.json")
-    return raw_res["full_id"].replace(" ", "_")
+    return raw_res["full_id"], raw_res["function_id"]
 
 
 def parse_estimate_file(directory):
@@ -134,6 +159,18 @@ def parse_key_sizes(result_file):
             result_values.append({"value": int(value), "test": test_name})
 
     return result_values
+
+
+def get_parameters(bench_id):
+    """
+    Get benchmarks parameters recorded for a given benchmark case.
+
+    :param bench_id: function name used for the benchmark case
+
+    :return: benchmark parameters as :class:`dict`
+    """
+    params_dir = pathlib.Path("tfhe", "benchmarks_parameters", bench_id)
+    return _parse_file_to_json(params_dir, "parameters.json")
 
 
 def compute_ops_per_dollar(data_point, product_hourly_cost):
@@ -219,6 +256,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     check_mandatory_args(args)
 
+    failures = []
     raw_results = pathlib.Path(args.results)
     if not args.key_sizes:
         print("Parsing benchmark results... ")
@@ -234,8 +272,8 @@ if __name__ == "__main__":
                 print(f"Cannot find hardware hourly cost for '{args.hardware}'")
                 sys.exit(1)
 
-        results = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix, args.throughput,
-                                  hardware_cost)
+        results, failures = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix,
+                                            args.throughput, hardware_cost)
     else:
         print("Parsing key sizes results... ")
         results = parse_key_sizes(raw_results)
@@ -246,3 +284,10 @@ if __name__ == "__main__":
     dump_results(results, output_file, args)
 
     print("Done")
+
+    if failures:
+        print("\nParsing failed for some results")
+        print("-------------------------------")
+        for name, error in failures:
+            print(f"[{name}] {error}")
+        sys.exit(1)
